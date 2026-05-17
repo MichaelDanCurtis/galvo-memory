@@ -1,0 +1,60 @@
+# Galvo Memory — Neo4j Community Edition for local development.
+#
+# Spec / rationale: ../docs/MEMORY-LAYER-DESIGN.md §2 (substrate decision) +
+# §11 step 2 (Phase 1 spike — need Neo4j 2026.01+ for in-index filtering with
+# the SEARCH clause; 2026.04 is the latest stable as of design date).
+#
+# Run:
+#   cd memory/docker && docker compose up -d
+#   open http://localhost:7474   # Browser
+#   # Bolt protocol on bolt://localhost:7687 — used by neo4j-agent-memory
+#
+# Data persists in a named volume `galvo_memory_data` so docker compose down
+# does NOT lose the spike data. Phase 2 starts with `docker compose down -v`
+# to enforce the design's "throw away the spike DB before phase 2" rule.
+
+services:
+  neo4j:
+    image: neo4j:2026.04-community
+    container_name: galvo-memory-neo4j
+    ports:
+      - "7474:7474"   # HTTP — Neo4j Browser
+      - "7687:7687"   # Bolt — drivers / agent-memory client
+    environment:
+      # Auth — change the password before first use; spike default is acceptable
+      # for personal-only local dev, but the design specifies an explicit pw at
+      # `uvx ... mcp serve --password <pw>` so this needs to match.
+      NEO4J_AUTH: "neo4j/galvo-memory-dev-2026"
+      # Heap + page cache for personal-use M4 Pro; tighter than defaults to
+      # avoid the JVM eating 4GB just for an empty DB.
+      NEO4J_server_memory_heap_initial__size: "512m"
+      NEO4J_server_memory_heap_max__size: "2g"
+      NEO4J_server_memory_pagecache_size: "1g"
+      # APOC + GenAI procedures — needed for vector index management and
+      # embedding-aware queries that neo4j-agent-memory relies on.
+      NEO4J_PLUGINS: '["apoc", "genai"]'
+      # Accept license tier for community — required by 2026.x images even
+      # though no fee applies for Community Edition.
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+      # Enable the `dbms.security.procedures.unrestricted` for APOC procedures
+      # the memory library calls during schema introspection.
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*,genai.*"
+    volumes:
+      - galvo_memory_data:/data
+      - galvo_memory_logs:/logs
+      - galvo_memory_plugins:/plugins
+    healthcheck:
+      # `cypher-shell` returns 0 when the DB is up + auth works.
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:7474 > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12   # Allow up to 2 min for the JVM + plugin install on cold start.
+    restart: unless-stopped
+
+volumes:
+  galvo_memory_data:
+    name: galvo_memory_data
+  galvo_memory_logs:
+    name: galvo_memory_logs
+  galvo_memory_plugins:
+    name: galvo_memory_plugins
