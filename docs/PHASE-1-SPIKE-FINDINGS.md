@@ -89,23 +89,46 @@ claude mcp add galvo-memory \
 
 After adding + restarting Claude Code, `/mcp` should list `galvo-memory` and the extended (16-tool) toolset should be available.
 
-## Decision gate (design §11 step 5)
+## Decision gate (design §11 step 5) — LOCKED 2026-05-17
 
-The design says: **"Confirm phase 1 spike approach before going further."** The substrate is proven. Before Phase 2 starts, we need:
+Five decisions confirmed after walking through tradeoffs:
 
-1. **Confirm MCP-only is not enough** — design §2 already commits to MCP + hooks + sidecar, but the gate exists in case the spike reveals the MCP layer alone is sufficient. After Michael runs one session via MCP, decide.
-2. **Confirm embedder choice for cycle 1** — sentence-transformers MiniLM-L6-v2 (384-dim, ~80MB model, fully local) is the conservative default. Qwen3-Embedding-8B via MLX (4096-dim, ~4GB model, faster on M4) is the upgrade. Lock for cycle 1; revisit when retrieval quality is visibly bad.
-3. **Confirm extraction approach** — library-side (GLiNER/spacy, heavyweight) vs LLM-side (MCP tools, calls Claude). Spike default is no extraction (prose lands as one entity); Phase 2 picks one.
-4. **Confirm scope partitioning model** — design §4 specifies `scope: project:<repo-id> | personal | universal`. The library has `session-strategy` but no native scope concept. We'll need to layer scope as a property convention. Phase 2 ontology DDL handles this.
-5. **Confirm SAGE-lite feedback loop scope** — design §5 sketches per-retrieval logging + per-session scoring + nightly consolidation. Cycle 1 ship the logging (cheap); cycle 2 ship the consolidation. Confirm.
+| | Decision | Locked value |
+|---|---|---|
+| **D1** | Integration channels | **C — MCP + Claude Code hooks + FastAPI sidecar** (design default §2). Three-channel: MCP for proactive recall, hooks for SessionStart/UserPromptSubmit/PostToolUse/SessionEnd auto-logging, sidecar daemon owning the data layer. |
+| **D2** | Embedder | **A — sentence-transformers all-MiniLM-L6-v2 (384-dim) for cycle 1; deliberate Qwen3-Embedding-8B swap in cycle 2.** Conservative default; throw away spike DB at Phase 2 boundary per §6 hard rule; swap embedder once the system has been used enough to know if retrieval quality is the actual bottleneck. |
+| **D3** | Extraction | **B — LLM-side via MCP tools.** Claude (or Codex/VS Code) decides what's worth extracting and calls memory_store with structured entities. No library-side NER (no GLiNER/spacy install). Reasoning: the LLM is the smartest entity-recognizer in the loop. |
+| **D4** | Scope partitioning | **A — `project:<repo-id>` + `personal` + `universal`** (design default §4). Three-tier scope on every node. Repo-id derived from `.galvo-mem/project.toml` marker file per design §10 (stable across worktrees + monorepos). |
+| **D5** | Feedback loop | **B — Logging + per-session scoring in cycle 1; nightly consolidation in cycle 2.** Cycle 1: every retrieval gets RETRIEVED_IN edge + utility score [-1,+1] computed at SessionEnd from textual-reference / task-outcome / re-query-immediately signals. Cycle 2: tune consolidation algorithm against ~30 sessions of real scoring data. Same end state, lower risk of mis-tuned consolidation harming retrieval before signal trust. |
+
+### Why D2 and D5 were de-escalated from initial picks
+
+Michael's first picks were the maximalist options on D2 (Qwen3 cycle 1) and D5 (full SAGE cycle 1). After surfacing the scope implications:
+
+- **D2 → MiniLM:** Qwen3 requires ~1-2 days of custom MLX embedder engineering (the library's `CUSTOM` provider hook + tokenizer + inference) plus ~4GB model download, all before knowing if MiniLM's retrieval quality is the bottleneck. Design §3 itself positioned Qwen3 as a later upgrade ("once we know the access pattern"). The throw-away-spike-DB rule means the embedder swap is a clean operation later.
+- **D5 → logging + scoring only:** the consolidation service is a 1-2 week subsystem. Design §10 already flagged that consolidation tuning on n=1 user data risks pruning the wrong things. Better to collect ~30 sessions of real scoring data before locking the algorithm.
+
+Both downgrades are explicitly reversible — they're temporal sequencing decisions, not capability cuts.
 
 ## Phase 2 readiness checklist (what's blocked on Phase 1 close)
 
-When the decision gate passes:
+Two gates remaining before Phase 2 begins:
 
-- [ ] Drop spike DB: `cd memory/docker && docker compose down -v`
+1. **Michael wires the MCP server into Claude Code** (snippet above) and restarts. After restart, `/mcp` should list `galvo-memory` with 16 tools available.
+2. **One real coding session against the spike** — the design §6 spike-success criterion: "see what got stored, what's useful, what's noise." After the session, hit the proper gate and write the Phase 2 plan from real observations.
+
+When the gate passes (i.e. after session 1), Phase 2 work:
+
+- [ ] Drop spike DB: `cd memory/docker && docker compose down -v` (design §6 hard rule)
 - [ ] Define custom ontology DDL in `memory/ontology/` (12 node types per design §4)
-- [ ] Use `client.schema.adopt_existing_graph(...)` to layer custom ontology — verify this API exists in v0.2.1 first (library has `SchemaManager`)
+- [ ] Verify `client.schema.adopt_existing_graph(...)` exists in v0.2.1 (library has `SchemaManager` class — needs probing) and layer custom ontology over it
 - [ ] Stand up FastAPI sidecar on `:7575` in `memory/sidecar/`
 - [ ] Build Claude Code hooks in `memory/hooks/claude-code/`: SessionStart, UserPromptSubmit, PostToolUse, SessionEnd
 - [ ] File watcher for AGENTS.md / CLAUDE.md / .cursorrules / .codex/* changes
+- [ ] Implement scope partitioning convention (D4 — every node gets `scope` property; hooks read working-directory project marker file)
+- [ ] Implement feedback-loop logging + scoring (D5 cycle 1): RETRIEVED_IN edge writer; SessionEnd scorer
+
+Cycle 2 (separate from this plan, do not bundle):
+
+- [ ] Wire MLX-Qwen3 as `CUSTOM` embedder, drop DB, re-bootstrap with 4096-dim index (D2 swap)
+- [ ] Implement consolidation service (D5 cycle 2 — edge-weight updates, belief invalidation, redundancy merging, low-utility pruning)
