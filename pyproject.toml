@@ -1,0 +1,37 @@
+[project]
+name = "galvo-memory"
+version = "0.1.0"
+description = "Galvo memory layer — graph-native memory for AI coding agents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # Pinned to v0.2.1 per Phase 1 finding §1 — minor-version bump implies breaking changes already happened.
+    "neo4j-agent-memory[sentence-transformers]==0.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ontology", "scope", "sidecar", "hooks"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# Phase 2 cycle-1 tests require live Neo4j on bolt://localhost:7687.
+# To run without integration tests: `pytest -m 'not integration'`.
+markers = [
+    "integration: requires live Neo4j substrate on bolt://localhost:7687",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
