@@ -11,6 +11,9 @@ Modules shipped so far:
 * :mod:`config` (Task 6) — :class:`SidecarSettings` (Pydantic) for the
   runtime knobs the FastAPI app reads at boot.
 * :mod:`app` (Task 6) — the FastAPI app + ``/health`` smoke endpoint.
+* :mod:`deps` (Task 7) — FastAPI dependency providers (``MemoryDep`` +
+  ``SettingsDep``) that route handlers use to receive the active client
+  and settings.
 
-Later tasks add :mod:`deps`, :mod:`routers`, :mod:`feedback`, :mod:`scoring`.
+Later tasks add :mod:`routers`, :mod:`feedback`, :mod:`scoring`.
 """
