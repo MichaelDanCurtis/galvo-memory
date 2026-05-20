@@ -51,6 +51,59 @@ services:
       retries: 12   # Allow up to 2 min for the JVM + plugin install on cold start.
     restart: unless-stopped
 
+  # FastAPI sidecar on :7575 — Phase 2 Tasks 6-10.
+  # Owns the MemoryClient (Neo4j bolt) + the sentence-transformers embedder
+  # warmup so the hook layer (Tasks 11-15) can hit a single localhost URL
+  # instead of importing the heavy embedder into every Claude Code session.
+  sidecar:
+    build:
+      # Build context is `memory/` (one level up). The Dockerfile's
+      # `COPY pyproject.toml`, `COPY sidecar/`, `COPY ontology/`, `COPY scope/`
+      # all resolve relative to that root — matches the comment block at
+      # the top of memory/sidecar/Dockerfile.
+      context: ..
+      dockerfile: sidecar/Dockerfile
+    container_name: galvo-memory-sidecar
+    ports:
+      - "7575:7575"
+    environment:
+      # SidecarSettings (memory/sidecar/config.py) uses
+      # `env_prefix="GALVO_MEMORY_SIDECAR_"`, so the env-var name is the
+      # prefix + uppercased field name. Field names verified against
+      # config.py: neo4j_uri / neo4j_user / neo4j_password / neo4j_database
+      # / embedding_model / embedding_dimensions.
+      #
+      # `neo4j` (not `localhost`) — DNS-resolved inside the compose network
+      # via the service name; bolt://localhost:7687 would target the
+      # sidecar container itself.
+      GALVO_MEMORY_SIDECAR_NEO4J_URI: "bolt://neo4j:7687"
+      GALVO_MEMORY_SIDECAR_NEO4J_USER: "neo4j"
+      GALVO_MEMORY_SIDECAR_NEO4J_PASSWORD: "galvo-memory-dev-2026"
+      GALVO_MEMORY_SIDECAR_NEO4J_DATABASE: "neo4j"
+      GALVO_MEMORY_SIDECAR_EMBEDDING_MODEL: "all-MiniLM-L6-v2"
+      GALVO_MEMORY_SIDECAR_EMBEDDING_DIMENSIONS: "384"
+    depends_on:
+      # Gate sidecar startup on Neo4j's healthcheck — not just the container
+      # being up. The sidecar's lifespan calls MemoryClient.connect() which
+      # opens a Bolt session immediately, so a half-booted DB makes the
+      # sidecar crash-loop. `service_healthy` is the documented compose
+      # condition for "wait until the dependency's healthcheck reports
+      # healthy" (compose-spec.md).
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      # `/health` returns 200 once MemoryClient.connect() resolves + the
+      # embedder is warm. Use python stdlib (urllib) so we don't depend on
+      # curl/wget being present in the python:3.12-slim base.
+      test:
+        - "CMD-SHELL"
+        - "python -c 'import urllib.request as r; r.urlopen(\"http://localhost:7575/health\", timeout=3)' || exit 1"
+      interval: 15s
+      timeout: 5s
+      retries: 8         # ~2 min total — first boot warms the embedder (~10s).
+      start_period: 30s  # Cold-start grace for embedder model download.
+    restart: unless-stopped
+
 volumes:
   galvo_memory_data:
     name: galvo_memory_data
