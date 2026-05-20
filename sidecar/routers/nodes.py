@@ -169,12 +169,23 @@ def _row_to_dict(row: dict[str, Any], *, node_key: str = "n") -> dict[str, Any]:
     # promote CLI, UI) can show "Decision" instead of falling back to the
     # EntityType discriminator (CONCEPT/EVENT/OBJECT/FACT). Drop the
     # super-label "Entity" — every node carries it via adopt_existing_graph
-    # and it's noise in a per-hit display. If the driver doesn't surface
-    # node labels (e.g. when the projection was already-flat in a
-    # mock/test), don't synthesize — just omit the key.
-    node_labels = getattr(node, "labels", None)
-    if node_labels is not None:
-        custom_labels = [label for label in node_labels if label != "Entity"]
+    # and it's noise in a per-hit display.
+    #
+    # We read `_labels` from the projected row (Cypher's `labels(n) AS
+    # _labels`) rather than `node.labels` — the neo4j-agent-memory wrapper
+    # resolves nodes to dicts before _row_to_dict sees them, so the Node
+    # object's `.labels` attribute is gone by this point.
+    raw_labels = row.get("_labels") if isinstance(row, dict) else None
+    if raw_labels is None:
+        # Fallback to the Node.labels attribute if the driver did preserve
+        # it (some test paths, future driver upgrades) — better to surface
+        # the tag two ways than miss it.
+        raw_labels = getattr(node, "labels", None)
+    if raw_labels is not None:
+        try:
+            custom_labels = [label for label in raw_labels if isinstance(label, str) and label != "Entity"]
+        except TypeError:
+            custom_labels = []
         if custom_labels:
             # Sort for deterministic ordering, then pick the first as the
             # canonical label. A node should only carry one of the 12

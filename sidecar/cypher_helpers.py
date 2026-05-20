@@ -151,7 +151,10 @@ def build_scoped_match(
     if where_clauses:
         parts.append("WHERE " + " AND ".join(where_clauses))
 
-    parts.append(f"RETURN {alias}")
+    # Also project labels() so _row_to_dict can surface the 12-label tag
+    # downstream (hooks, promote CLI). See the comment in
+    # build_scoped_search_with_embedding for the rationale.
+    parts.append(f"RETURN {alias}, labels({alias}) AS _labels")
     if order_by:
         parts.append(f"ORDER BY {order_by}")
     parts.append("LIMIT $limit")
@@ -220,13 +223,19 @@ def build_scoped_search_with_embedding(
     scope_clause = scope_filter_clause(scope, alias=alias)
     where_extra = f" AND {scope_clause}" if scope_clause else ""
 
+    # We also project `labels(n) AS _labels` so the response carries the
+    # 12-label custom tag (Decision/Commit/Belief/etc.) — the library
+    # wrapper that resolves nodes-to-dicts in the driver does NOT preserve
+    # the Node object's `.labels` attribute, so we must SELECT it
+    # explicitly. The router's _row_to_dict picks up `_labels` and
+    # surfaces it under `label`/`labels` for downstream hooks.
     cypher = (
         f"CALL db.index.vector.queryNodes('{embedding_index}', $vector_limit, $embedding) "
         f"YIELD node AS {alias}, score "
         f"WHERE score >= $threshold "
         f"AND '{label}' IN labels({alias})"
         f"{where_extra} "
-        f"RETURN {alias}, score "
+        f"RETURN {alias}, labels({alias}) AS _labels, score "
         f"ORDER BY score DESC "
         f"LIMIT $limit"
     )
