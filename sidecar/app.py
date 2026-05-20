@@ -38,6 +38,7 @@ from neo4j_agent_memory import (  # type: ignore[import-untyped]
 )
 
 from sidecar.config import SidecarSettings
+from sidecar.routers.sessions import router as sessions_router
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -90,6 +91,10 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
+
+# Task 10 — SessionEnd utility scorer at POST /api/sessions/{id}/score.
+# Subsequent tasks (Task 8 nodes-router) add additional includes here.
+app.include_router(sessions_router)
 
 
 @app.get("/health")
