@@ -123,6 +123,36 @@ class HookInputBase(BaseModel):
     )
 
     @classmethod
+    def model_validate(cls, obj: Any, **kwargs: Any) -> "HookInputBase":
+        """Lift Claude Code's flat hook payload into our ``extra`` dict.
+
+        Real-world Claude Code dispatches hooks with event-specific keys
+        (``tool_name``, ``tool_input``, ``tool_response``, ``prompt``) as
+        TOP-LEVEL fields, NOT nested under ``extra``. The original model
+        in cycle 1 expected the nested form, so PostToolUse and
+        UserPromptSubmit silently dropped their payloads.
+
+        This shim copies the known event-specific top-level keys into
+        ``extra`` BEFORE Pydantic validates, so downstream hook code that
+        reads ``hook_input.extra["tool_name"]`` continues to work
+        regardless of which shape Claude Code emits. It's idempotent —
+        if the caller already passed a populated ``extra`` dict, those
+        values win.
+        """
+        if isinstance(obj, dict):
+            # Don't mutate the caller's dict.
+            data: dict[str, Any] = dict(obj)
+            existing_extra = data.get("extra") if isinstance(data.get("extra"), dict) else {}
+            absorbed = dict(existing_extra)
+            for key in ("tool_name", "tool_input", "tool_response", "prompt"):
+                if key in data and key not in absorbed:
+                    absorbed[key] = data[key]
+            if absorbed:
+                data["extra"] = absorbed
+            obj = data
+        return super().model_validate(obj, **kwargs)
+
+    @classmethod
     def from_stdin(cls) -> "HookInputBase":
         """Parse a hook's stdin JSON. NEVER raises.
 

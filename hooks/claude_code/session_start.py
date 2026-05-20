@@ -144,17 +144,31 @@ def main() -> int:
 
     # Fetch the four top-of-mind sets. Every call returns [] on failure
     # — see SidecarClient.search contract — so we never need try/except.
+    #
+    # threshold=0.3 (instead of the sidecar default 0.7): the queries here
+    # are generic descriptors ("recent decision rationale", "open task
+    # pending work", etc.) rather than real semantic queries. The default
+    # 0.7 threshold filters out almost everything because nobody writes
+    # Decision titles that semantically match the phrase "recent decision
+    # rationale". A looser floor lets recent items surface even when the
+    # semantic match is weak. Cycle 2 will add a recency-first list
+    # endpoint that removes the need for this workaround entirely.
+    TOP_OF_MIND_THRESHOLD = 0.3
     decisions = client.search(
-        "Decision", QUERY_DECISIONS, scope=scope, limit=MAX_DECISIONS
+        "Decision", QUERY_DECISIONS, scope=scope,
+        limit=MAX_DECISIONS, threshold=TOP_OF_MIND_THRESHOLD,
     )
     beliefs = client.search(
-        "Belief", QUERY_BELIEFS, scope=scope, limit=MAX_BELIEFS
+        "Belief", QUERY_BELIEFS, scope=scope,
+        limit=MAX_BELIEFS, threshold=TOP_OF_MIND_THRESHOLD,
     )
     tasks = client.search(
-        "Task", QUERY_TASKS, scope=scope, limit=MAX_TASKS
+        "Task", QUERY_TASKS, scope=scope,
+        limit=MAX_TASKS, threshold=TOP_OF_MIND_THRESHOLD,
     )
     failures = client.search(
-        "Failure", QUERY_FAILURES, scope=scope, limit=MAX_FAILURES
+        "Failure", QUERY_FAILURES, scope=scope,
+        limit=MAX_FAILURES, threshold=TOP_OF_MIND_THRESHOLD,
     )
 
     output = _format_block(scope, decisions, beliefs, tasks, failures)

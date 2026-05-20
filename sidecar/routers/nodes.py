@@ -350,8 +350,16 @@ async def search_nodes(
     The threshold default 0.7 is the Task-5 default — kept identical so
     operators have one number to remember. Cycle-2 may tune it per label
     based on retrieval-utility scores.
+
+    Special case: ``label == "Entity"`` searches across ALL 12 custom
+    labels using the library's super-label that ``adopt_existing_graph``
+    stamps onto every node. This is what UserPromptSubmit (Task 13) uses
+    to do a single cross-label semantic retrieval per user prompt — fanning
+    out 12 separate searches would 12x the latency budget for no signal
+    gain (the vector index is the same).
     """
-    _ensure_label(label)
+    if label != "Entity":
+        _ensure_label(label)
 
     embedding = await _embed_text(memory, q)
     if embedding is None:

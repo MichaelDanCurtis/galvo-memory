@@ -133,7 +133,15 @@ def main() -> int:
     # Search Entity (the super-label every custom-label node carries) so a
     # single round-trip surfaces hits across all 12 labels. Per-label
     # fan-out would be 12 calls and miss the latency target.
-    hits = client.search("Entity", query, scope=scope, limit=MAX_HITS)
+    #
+    # threshold=0.4 (instead of sidecar default 0.7): the sidecar default
+    # is tuned for "give me a tight semantic match." User prompts are
+    # short paraphrases of intent that rarely embed within 0.7 of any
+    # planted node — even when the planted node is genuinely the relevant
+    # piece of memory. 0.4 surfaces good loose-but-relevant matches while
+    # still filtering out total non-sequiturs. Cycle 2 will tune this
+    # per-label based on the SessionEnd utility scorer's signal.
+    hits = client.search("Entity", query, scope=scope, limit=MAX_HITS, threshold=0.4)
 
     if not hits:
         log.info("no retrieval hits for scope=%s query_len=%d", scope, len(query))

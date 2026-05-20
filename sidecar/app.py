@@ -74,6 +74,16 @@ async def lifespan(app: FastAPI) -> "AsyncIterator[None]":
     )
     client = MemoryClient(settings=settings)
     await client.connect()
+    # Warm the embedder. Without this, the FIRST /api/search call after sidecar
+    # boot triggers the sentence-transformers model download + load (~5-15s),
+    # which blows past the 3s hook timeout and makes SessionStart silently
+    # no-op on every fresh sidecar start. Calling embed("warm") here forces the
+    # download + load inside the lifespan (where it's expected to be slow on
+    # first boot) so the first user-facing search is sub-100ms.
+    try:
+        await client.long_term.embedder.embed("warm")
+    except Exception:  # noqa: BLE001 — warm-up is best-effort, don't block boot
+        pass
     app.state.memory = client
     app.state.config = cfg
     try:

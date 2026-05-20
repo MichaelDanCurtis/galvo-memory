@@ -123,8 +123,9 @@ class SidecarClient:
         *,
         scope: str | None = None,
         limit: int = 5,
+        threshold: float | None = None,
     ) -> list[dict[str, Any]]:
-        """``GET /api/search/{label}?q=...&scope=...&limit=N`` — returns hits or ``[]``.
+        """``GET /api/search/{label}?q=...&scope=...&limit=N&threshold=T`` — returns hits or ``[]``.
 
         Args:
             label: One of the 12 ontology labels (Decision / Pattern /
@@ -138,6 +139,13 @@ class SidecarClient:
                 plus universal when this is set.
             limit: Max number of hits to return (sidecar caps at 50;
                 we don't validate here, let the server reject if needed).
+            threshold: Optional vector-similarity floor. Sidecar default
+                is 0.7 (tight match). For top-of-mind use cases where the
+                query is a generic descriptor like "recent decision
+                rationale", pass a lower threshold (e.g. 0.3) so that
+                weakly-matching but recent items still surface. Cycle 2
+                will add a recency-first list endpoint that makes the
+                threshold-tuning workaround unnecessary.
 
         Returns:
             A list of node dicts (shape per :class:`sidecar.models`
@@ -149,6 +157,8 @@ class SidecarClient:
         params: dict[str, Any] = {"q": query, "limit": limit}
         if scope is not None:
             params["scope"] = scope
+        if threshold is not None:
+            params["threshold"] = threshold
         result = self._get(f"/api/search/{label}", params=params)
         if not isinstance(result, list):
             return []
