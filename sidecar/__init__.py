@@ -2,10 +2,15 @@
 
 Phase 2B/2C surface area: the FastAPI service on ``:7575`` that owns the
 ``MemoryClient``, scope partitioning, REST CRUD per node label, feedback
-edge logging, and SessionEnd scoring. Phase 2A (this task) only ships
-:mod:`cypher_helpers`, the pure-Python composition helpers every downstream
-sidecar endpoint will call when it needs to build a scope-aware query.
+edge logging, and SessionEnd scoring.
 
-Nothing else is exported yet; later tasks add :mod:`app`, :mod:`deps`,
-:mod:`routers`, :mod:`feedback`, :mod:`scoring`.
+Modules shipped so far:
+
+* :mod:`cypher_helpers` (Task 5) — pure-Python composition helpers every
+  downstream endpoint calls when it needs to build a scope-aware query.
+* :mod:`config` (Task 6) — :class:`SidecarSettings` (Pydantic) for the
+  runtime knobs the FastAPI app reads at boot.
+* :mod:`app` (Task 6) — the FastAPI app + ``/health`` smoke endpoint.
+
+Later tasks add :mod:`deps`, :mod:`routers`, :mod:`feedback`, :mod:`scoring`.
 """
