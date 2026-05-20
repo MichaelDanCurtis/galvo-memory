@@ -415,7 +415,7 @@ async def test_score_session_writes_back_utility_score() -> None:
     assert report.edges_skipped == 0
     # Write was called exactly once with our edge.
     memory.graph.execute_write.assert_awaited_once()
-    call_kwargs = memory.graph.execute_write.call_args.kwargs
+    call_kwargs = memory.graph.execute_write.call_args.args[1]
     assert call_kwargs["edge_id"] == "el-99"
     # All positive signals: 0.5 + 0.3 = 0.8.
     assert call_kwargs["score"] == pytest.approx(0.8)
@@ -489,7 +489,7 @@ async def test_score_session_fetch_includes_session_id_param() -> None:
     await score_session(memory, payload=payload)
 
     memory.graph.execute_read.assert_awaited_once()
-    call_kwargs = memory.graph.execute_read.call_args.kwargs
+    call_kwargs = memory.graph.execute_read.call_args.args[1]
     assert call_kwargs == {"session_id": "abc-123"}
 
 

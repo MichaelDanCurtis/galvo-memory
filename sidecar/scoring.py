@@ -326,7 +326,7 @@ async def _fetch_edges(
         "coalesce(n.title, n.name, n.claim, n.path, n.sha, n.identifier) AS content, "
         "n.id AS node_id"
     )
-    result = await memory.graph.execute_read(cypher, session_id=session_id)
+    result = await memory.graph.execute_read(cypher, {"session_id": session_id})
     return list(result or [])
 
 
@@ -346,7 +346,7 @@ async def _write_score(
         "SET r.utility_score = $score, r.scored_at = datetime() "
         "RETURN r"
     )
-    await memory.graph.execute_write(cypher, edge_id=edge_id, score=score)
+    await memory.graph.execute_write(cypher, {"edge_id": edge_id, "score": score})
 
 
 # ---------------------------------------------------------------------------

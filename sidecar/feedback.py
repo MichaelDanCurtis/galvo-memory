@@ -126,11 +126,13 @@ async def log_retrieval(
         try:
             await memory.graph.execute_write(
                 cypher,
-                node_id=node_id,
-                session_id=session_id,
-                rank=rank,
-                score=score,
-                context=context,
+                {
+                    "node_id": node_id,
+                    "session_id": session_id,
+                    "rank": rank,
+                    "score": score,
+                    "context": context,
+                },
             )
             count += 1
         except Exception as exc:  # noqa: BLE001 — logged, never raised

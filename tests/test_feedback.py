@@ -115,7 +115,7 @@ async def test_rank_increments_from_zero(mock_memory: MagicMock) -> None:
     hits = [_FakeHit("a", 0.5), _FakeHit("b", 0.4), _FakeHit("c", 0.3)]
     await log_retrieval(mock_memory, session_id="s1", query="q", hits=hits)
     calls = mock_memory.graph.execute_write.call_args_list
-    assert [c.kwargs["rank"] for c in calls] == [0, 1, 2]
+    assert [c.args[1]["rank"] for c in calls] == [0, 1, 2]
 
 
 @pytest.mark.asyncio
@@ -133,7 +133,7 @@ async def test_all_call_parameters_bound(mock_memory: MagicMock) -> None:
     await log_retrieval(
         mock_memory, session_id="sess-abc", query="user query", hits=[hit]
     )
-    kwargs = mock_memory.graph.execute_write.call_args.kwargs
+    kwargs = mock_memory.graph.execute_write.call_args.args[1]
     assert kwargs["node_id"] == "node-xyz"
     assert kwargs["session_id"] == "sess-abc"
     assert kwargs["rank"] == 0
@@ -177,7 +177,7 @@ async def test_context_truncated_to_max_chars(mock_memory: MagicMock) -> None:
     await log_retrieval(
         mock_memory, session_id="s1", query=long_query, hits=[_FakeHit("n", 0.5)]
     )
-    ctx = mock_memory.graph.execute_write.call_args.kwargs["context"]
+    ctx = mock_memory.graph.execute_write.call_args.args[1]["context"]
     assert len(ctx) == MAX_CONTEXT_CHARS
     # Truncation is leading-N, not random-N — confirm we kept the start.
     assert ctx == "x" * MAX_CONTEXT_CHARS
@@ -193,7 +193,7 @@ async def test_short_context_not_padded(mock_memory: MagicMock) -> None:
     """
     short = "hi"
     await log_retrieval(mock_memory, session_id="s1", query=short, hits=[_FakeHit("n", 0.5)])
-    ctx = mock_memory.graph.execute_write.call_args.kwargs["context"]
+    ctx = mock_memory.graph.execute_write.call_args.args[1]["context"]
     assert ctx == "hi"
     assert len(ctx) == 2
 
@@ -210,7 +210,7 @@ async def test_empty_query_becomes_empty_string(mock_memory: MagicMock) -> None:
     await log_retrieval(
         mock_memory, session_id="s1", query="", hits=[_FakeHit("n", 0.5)]
     )
-    ctx = mock_memory.graph.execute_write.call_args.kwargs["context"]
+    ctx = mock_memory.graph.execute_write.call_args.args[1]["context"]
     assert ctx == ""
 
     mock_memory.graph.execute_write.reset_mock()
@@ -223,7 +223,7 @@ async def test_empty_query_becomes_empty_string(mock_memory: MagicMock) -> None:
         query=None,  # type: ignore[arg-type]
         hits=[_FakeHit("n", 0.5)],
     )
-    assert mock_memory.graph.execute_write.call_args.kwargs["context"] == ""
+    assert mock_memory.graph.execute_write.call_args.args[1]["context"] == ""
 
 
 # ---------------------------------------------------------------------------
@@ -265,8 +265,8 @@ async def test_hit_without_id_skipped(mock_memory: MagicMock, caplog: pytest.Log
     # Good hit is written with rank=1 (NOT re-ranked to 0 — the bad hit
     # still consumed rank 0). This preserves alignment with whatever
     # rank-meaning the caller had upstream.
-    assert mock_memory.graph.execute_write.call_args.kwargs["rank"] == 1
-    assert mock_memory.graph.execute_write.call_args.kwargs["node_id"] == "n"
+    assert mock_memory.graph.execute_write.call_args.args[1]["rank"] == 1
+    assert mock_memory.graph.execute_write.call_args.args[1]["node_id"] == "n"
     # The warning is informational, not actionable per-event.
     assert any("no .id attribute" in rec.message for rec in caplog.records)
 
@@ -283,7 +283,7 @@ async def test_hit_without_score_defaults_to_zero(mock_memory: MagicMock) -> Non
     hit = MagicMock(spec=["id"])
     hit.id = "n"
     await log_retrieval(mock_memory, session_id="s1", query="q", hits=[hit])
-    score = mock_memory.graph.execute_write.call_args.kwargs["score"]
+    score = mock_memory.graph.execute_write.call_args.args[1]["score"]
     assert score == 0.0
 
 
@@ -303,7 +303,7 @@ async def test_dict_hit_works(mock_memory: MagicMock) -> None:
         hits=[{"id": "n", "score": 0.7}],
     )
     assert n == 1
-    kwargs = mock_memory.graph.execute_write.call_args.kwargs
+    kwargs = mock_memory.graph.execute_write.call_args.args[1]
     assert kwargs["node_id"] == "n"
     assert kwargs["score"] == pytest.approx(0.7)
 
@@ -318,7 +318,7 @@ async def test_dict_hit_without_score_defaults_to_zero(mock_memory: MagicMock) -
     await log_retrieval(
         mock_memory, session_id="s1", query="q", hits=[{"id": "n"}]
     )
-    score = mock_memory.graph.execute_write.call_args.kwargs["score"]
+    score = mock_memory.graph.execute_write.call_args.args[1]["score"]
     assert score == 0.0
 
 
@@ -334,7 +334,7 @@ async def test_id_coerced_to_string(mock_memory: MagicMock) -> None:
     hit.id = 42
     hit.score = 0.5
     await log_retrieval(mock_memory, session_id="s1", query="q", hits=[hit])
-    assert mock_memory.graph.execute_write.call_args.kwargs["node_id"] == "42"
+    assert mock_memory.graph.execute_write.call_args.args[1]["node_id"] == "42"
 
 
 # ---------------------------------------------------------------------------
