@@ -14,6 +14,12 @@ Modules shipped so far:
 * :mod:`deps` (Task 7) — FastAPI dependency providers (``MemoryDep`` +
   ``SettingsDep``) that route handlers use to receive the active client
   and settings.
+* :mod:`scoring` (Task 10) — SessionEnd utility scorer for the D5
+  cycle-1 SAGE-lite loop; walks ``RETRIEVED_IN`` edges and writes
+  ``utility_score``.
+* :mod:`routers.sessions` (Task 10) — ``POST /api/sessions/{id}/score``
+  endpoint wrapping :func:`scoring.score_session`.
 
-Later tasks add :mod:`routers`, :mod:`feedback`, :mod:`scoring`.
+Later tasks add :mod:`routers.nodes` (Task 8) and :mod:`feedback`
+(Task 9).
 """
