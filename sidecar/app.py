@@ -91,6 +91,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Task 8 — REST CRUD for the 12 ontology labels. Imported AFTER ``app``
+# is constructed so the import is cheap (the router itself only depends
+# on already-imported modules) and there's no chicken-and-egg between
+# the router pulling ``MemoryDep`` and the app pulling the router.
+from sidecar.routers import nodes as _nodes_router  # noqa: E402
+
+app.include_router(_nodes_router.router)
+
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
