@@ -262,7 +262,16 @@ def _hit_title(hit: dict[str, Any]) -> str:
         Trimmed, single-line title string. Never empty (falls back to id
         or the literal ``"?"`` if even id is missing).
     """
-    for key in ("title", "name", "claim", "summary", "error_signature", "path", "identifier", "sha"):
+    # Priority order: `message` is FIRST after `title`/`name` so Commit
+    # bullets show the commit subject ("memory: cycle-1 activation fixes")
+    # instead of the bare SHA ("9345269") — much more useful to the
+    # downstream model reading the injection. `sha` stays in the list as a
+    # last-resort identifier if a Commit ever lacks both message and the
+    # standard title keys.
+    for key in (
+        "title", "name", "message", "claim", "summary",
+        "error_signature", "path", "identifier", "sha",
+    ):
         value = hit.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip().splitlines()[0]

@@ -165,6 +165,23 @@ def _row_to_dict(row: dict[str, Any], *, node_key: str = "n") -> dict[str, Any]:
         props = dict(node.items())
     else:
         props = dict(node)
+    # Surface the 12-label custom tag so downstream consumers (hooks,
+    # promote CLI, UI) can show "Decision" instead of falling back to the
+    # EntityType discriminator (CONCEPT/EVENT/OBJECT/FACT). Drop the
+    # super-label "Entity" — every node carries it via adopt_existing_graph
+    # and it's noise in a per-hit display. If the driver doesn't surface
+    # node labels (e.g. when the projection was already-flat in a
+    # mock/test), don't synthesize — just omit the key.
+    node_labels = getattr(node, "labels", None)
+    if node_labels is not None:
+        custom_labels = [label for label in node_labels if label != "Entity"]
+        if custom_labels:
+            # Sort for deterministic ordering, then pick the first as the
+            # canonical label. A node should only carry one of the 12
+            # custom labels in cycle 1 but defensive against future
+            # multi-label schemas.
+            props["labels"] = sorted(custom_labels)
+            props["label"] = props["labels"][0]
     # Coerce neo4j.time.DateTime → stdlib datetime if present.
     if "created_at" in props and props["created_at"] is not None:
         props["created_at"] = _coerce_datetime(props["created_at"])
