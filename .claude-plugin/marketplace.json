@@ -8,7 +8,10 @@
     {
       "name": "galvo-memory",
       "version": "0.1.0",
-      "source": ".",
+      "source": {
+        "source": "github",
+        "repo": "MichaelDanCurtis/galvo-memory"
+      },
       "description": "Graph-native memory layer for Claude Code, Codex, and other MCP-aware AI coding agents. Captures sessions, decisions, commits, and conventions into a Neo4j-backed knowledge graph and feeds them back into every prompt."
     }
   ]
