@@ -88,6 +88,57 @@ The marker file survives renames, moves, and worktrees. Sessions opened anywhere
 
 Source: [`scope/marker.py`](scope/marker.py), [`scope/detector.py`](scope/detector.py).
 
+## Install on Claude Desktop
+
+**Claude Desktop supports MCP servers but not lifecycle hooks.** That means the auto-capture story (SessionStart top-of-mind, PostToolUse logging commits and edits, SessionEnd scoring) is **Claude Code only**. In Claude Desktop, the memory layer surfaces as MCP tools (`memory_store`, `memory_search`, etc.) that the model calls when it decides recall is relevant.
+
+Setup is one config edit plus a restart:
+
+1. **Make sure the substrate is running** (Neo4j on `:7687`):
+   ```bash
+   cd docker && docker compose up -d neo4j
+   ```
+2. **Edit Claude Desktop's MCP config.** Location is OS-specific:
+   - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+   - **Linux:** `~/.config/Claude/claude_desktop_config.json`
+
+   Merge in this snippet (drop-in copy at [`examples/claude_desktop_config.snippet.json`](examples/claude_desktop_config.snippet.json)):
+
+   ```json
+   {
+     "mcpServers": {
+       "galvo-memory": {
+         "command": "uvx",
+         "args": [
+           "--from", "neo4j-agent-memory[mcp,sentence-transformers]",
+           "neo4j-agent-memory", "mcp", "serve",
+           "--transport", "stdio",
+           "--uri", "bolt://localhost:7687",
+           "--user", "neo4j",
+           "--password", "galvo-memory-dev-2026",
+           "--database", "neo4j",
+           "--profile", "extended",
+           "--session-strategy", "per_day"
+         ],
+         "env": {
+           "NEO4J_AGENT_MEMORY__EMBEDDING__PROVIDER": "sentence_transformers",
+           "NEO4J_AGENT_MEMORY__EMBEDDING__MODEL": "all-MiniLM-L6-v2",
+           "NEO4J_AGENT_MEMORY__EMBEDDING__DIMENSIONS": "384"
+         }
+       }
+     }
+   }
+   ```
+
+   If `mcpServers` already exists in your config, add `galvo-memory` as a sibling — don't replace the whole block.
+
+3. **Restart Claude Desktop.** The model now has access to the memory tools. Try: *"Search my memory for what I decided about X."*
+
+**Prerequisites:** `uvx` on `PATH` (install via `pip install uv` or `brew install uv`). First invocation downloads the embedder (~90 MB) and is slow; subsequent calls are warm.
+
+**What's missing vs. Claude Code:** automatic capture. In Claude Desktop you'll need to explicitly say *"remember this decision"* or *"store this as a Belief"* — the model will use the MCP tools but won't fire on every prompt + tool use the way the CC hooks do. If you want auto-capture in Claude Desktop, that requires a different integration surface that the Anthropic Desktop app doesn't currently expose.
+
 ## Hook installation (Claude Code)
 
 The four lifecycle hooks live under [`hooks/claude_code/`](hooks/claude_code/). Each is an executable Python entrypoint that reads JSON from stdin (Claude Code's hook protocol) and talks to the sidecar over loopback.
