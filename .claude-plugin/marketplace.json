@@ -1,0 +1,15 @@
+{
+  "name": "galvo-memory",
+  "owner": {
+    "name": "Lucidity Labs",
+    "url": "https://github.com/MichaelDanCurtis"
+  },
+  "plugins": [
+    {
+      "name": "galvo-memory",
+      "version": "0.1.0",
+      "source": ".",
+      "description": "Graph-native memory layer for Claude Code, Codex, and other MCP-aware AI coding agents. Captures sessions, decisions, commits, and conventions into a Neo4j-backed knowledge graph and feeds them back into every prompt."
+    }
+  ]
+}

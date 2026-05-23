@@ -1,0 +1,16 @@
+{
+  "name": "galvo-memory",
+  "version": "0.1.0",
+  "description": "Graph-native memory layer for AI coding agents.",
+  "mcpServers": "./.mcp.json",
+  "hooks": "./.claude-plugin/hooks.json",
+  "interface": {
+    "displayName": "Galvo Memory",
+    "shortDescription": "Persistent memory for Claude Code and Codex via Neo4j.",
+    "longDescription": "Captures every session, decision, commit, file edit, test run, and failure into a Neo4j-backed 12-label knowledge graph. Surfaces top-of-mind context at SessionStart, retrieves semantically-relevant hits on every UserPromptSubmit, and scores retrieval utility at SessionEnd for a SAGE-lite feedback loop. Three-tier scope partitioning (project/personal/universal). Works with any MCP-aware client; ships first-class lifecycle hooks for Claude Code.",
+    "developerName": "Lucidity Labs",
+    "category": "Memory",
+    "websiteURL": "https://github.com/MichaelDanCurtis/galvo-memory",
+    "brandColor": "#0d1117"
+  }
+}

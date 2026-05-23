@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "galvo-memory": {
+      "command": "uvx",
+      "args": [
+        "--from", "neo4j-agent-memory[mcp,sentence-transformers]",
+        "neo4j-agent-memory", "mcp", "serve",
+        "--transport", "stdio",
+        "--uri", "bolt://localhost:7687",
+        "--user", "neo4j",
+        "--password", "galvo-memory-dev-2026",
+        "--database", "neo4j",
+        "--profile", "extended",
+        "--session-strategy", "per_day"
+      ],
+      "env": {
+        "NEO4J_AGENT_MEMORY__EMBEDDING__PROVIDER": "sentence_transformers",
+        "NEO4J_AGENT_MEMORY__EMBEDDING__MODEL": "all-MiniLM-L6-v2",
+        "NEO4J_AGENT_MEMORY__EMBEDDING__DIMENSIONS": "384"
+      }
+    }
+  }
+}

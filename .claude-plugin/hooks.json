@@ -1,0 +1,14 @@
+{
+  "SessionStart": [
+    {"matcher": "", "hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/claude_code/session_start.py"}]}
+  ],
+  "UserPromptSubmit": [
+    {"matcher": "", "hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/claude_code/user_prompt_submit.py"}]}
+  ],
+  "PostToolUse": [
+    {"matcher": "", "hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/claude_code/post_tool_use.py"}]}
+  ],
+  "SessionEnd": [
+    {"matcher": "", "hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/claude_code/session_end.py"}]}
+  ]
+}
